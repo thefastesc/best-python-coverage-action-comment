@@ -1,0 +1,231 @@
+# best-python-coverage-action-comment
+
+Parse a Python coverage XML report and post a detailed comment on every pull request. Enforces configurable coverage thresholds on all files, new files, and modified files.
+
+![PR comment example](./images/pr-message.jpg)
+
+---
+
+## How it works
+
+1. You generate a coverage XML report with `pytest` or `coverage.py` as part of your CI.
+2. On each pull request this action:
+   - Compares the base and head commits to identify **new** and **modified** files.
+   - Parses line coverage from the XML report for every changed file.
+   - Checks the overall average, new-file average, and modified-file average against your configured thresholds.
+   - Posts (or updates) a single comment on the PR with a summary, per-file tables, and a coverage histogram.
+   - Writes the same summary to the GitHub Actions job summary.
+   - Fails the job if any threshold is not met.
+
+---
+
+## Quick start
+
+Add a workflow file to `.github/workflows/`:
+
+```yaml
+name: coverage
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read       # needed to fetch the commit diff
+  pull-requests: write # needed to post and update the PR comment
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests with coverage
+        run: pytest --cov-report xml:coverage.xml --cov=src
+
+      - name: Post coverage comment
+        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        with:
+          coverageFile: coverage.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+---
+
+## Inputs
+
+| Input               | Required | Default         | Description |
+|---------------------|:--------:|-----------------|-------------|
+| `coverageFile`      | ✅       | —               | Path to the coverage XML file produced by `pytest --cov` or `coverage xml`. |
+| `token`             | ✅       | —               | GitHub token used to read the diff and write the PR comment. Use `${{ secrets.GITHUB_TOKEN }}`. |
+| `thresholdAll`      |          | `0.0`           | Minimum acceptable average line coverage across **all** files in the report. Value in `[0, 1]`. |
+| `thresholdNew`      |          | `0.0`           | Minimum acceptable average line coverage across **new** files in the PR. Value in `[0, 1]`. |
+| `thresholdModified` |          | `0.0`           | Minimum acceptable average line coverage across **modified** files in the PR. Value in `[0, 1]`. |
+| `sourceDir`         |          | auto-detected   | Root directory of your source code. Overrides the `<source>` element in the XML report. |
+| `passIcon`          |          | `🟢`            | Icon shown next to files that meet the threshold. |
+| `failIcon`          |          | `🔴`            | Icon shown next to files that do not meet the threshold. |
+| `title`             |          | `Code Coverage` | Heading of the PR comment. Set a unique value per matrix job to post separate comments per job. |
+| `postComment`       |          | `true`          | Post a comment on the PR. Set to `false` to only write the job summary — useful in large matrix workflows to avoid comment spam. |
+
+---
+
+## Generating a coverage XML report
+
+**pytest-cov**
+```bash
+pytest --cov=src --cov-report xml:coverage.xml
+```
+
+**coverage.py**
+```bash
+coverage run -m pytest
+coverage xml -o coverage.xml
+```
+
+---
+
+## Full example with all inputs
+
+```yaml
+name: coverage
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests with coverage
+        run: pytest --cov=src --cov-report xml:coverage.xml
+
+      - name: Post coverage comment
+        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        with:
+          coverageFile: coverage.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          thresholdAll: 0.8
+          thresholdNew: 0.9
+          thresholdModified: 0.7
+          sourceDir: src
+          passIcon: '✅'
+          failIcon: '❌'
+          title: 'Python Coverage'
+```
+
+---
+
+## Workflows that run on both push and pull_request
+
+The action only works on pull requests (it needs a PR to comment on). If your workflow also triggers on `push`, guard the action step with a condition:
+
+```yaml
+name: coverage
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests with coverage
+        run: pytest --cov=src --cov-report xml:coverage.xml
+
+      - name: Post coverage comment
+        if: github.event_name == 'pull_request'
+        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        with:
+          coverageFile: coverage.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Without the `if:` guard the step will fail on push events because there is no PR to comment on.
+
+---
+
+## pytest `--cov-fail-under` vs action thresholds
+
+These are two independent enforcement mechanisms that can be used together:
+
+- **`--cov-fail-under=80`** — pytest fails immediately if overall coverage drops below 80%. The action never runs.
+- **`thresholdAll / thresholdNew / thresholdModified`** — the action fails the job and marks which specific files are below threshold in the PR comment.
+
+A common pattern is to use both: `--cov-fail-under` as a hard floor on overall coverage, and the action thresholds for per-PR visibility on new and modified files.
+
+```yaml
+      - name: Run tests with coverage
+        run: pytest --cov=src --cov-report xml:coverage.xml --cov-fail-under=80
+
+      - name: Post coverage comment
+        if: github.event_name == 'pull_request'
+        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        with:
+          coverageFile: coverage.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          thresholdAll: 0.8
+          thresholdNew: 0.9
+```
+
+---
+
+## Matrix builds — one comment per job
+
+For large matrices, consider setting `postComment: false` so each job only writes its own job summary and does not post a PR comment. Each job gets its own summary tab so there is no information loss:
+
+```yaml
+      - name: Post coverage comment
+        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        with:
+          coverageFile: coverage.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          postComment: false
+```
+
+If you do want per-job PR comments, set a unique `title` per matrix entry so each job posts its own comment rather than overwriting a shared one:
+
+```yaml
+strategy:
+  matrix:
+    python-version: ['3.11', '3.12']
+
+steps:
+  - name: Post coverage comment
+    uses: thefastesc/best-python-coverage-action-comment@v3.3
+    with:
+      coverageFile: coverage.xml
+      token: ${{ secrets.GITHUB_TOKEN }}
+      title: "Coverage — Python ${{ matrix.python-version }}"
+```
+
+---
+
+## Permissions
+
+| Permission          | Why it is needed |
+|---------------------|------------------|
+| `contents: read`    | Fetches the diff between the PR base and head to identify new and modified files. |
+| `pull-requests: write` | Creates or updates the coverage comment on the PR. |
+
+If your repository enforces `permissions: read-all` at the org or repo level, set both permissions explicitly in the workflow as shown above.
+
+---
+
+## License
+
+[MIT](./LICENSE)

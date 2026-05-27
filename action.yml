@@ -1,0 +1,39 @@
+name: Python Coverage'
+description: 'Parse Python coverage XML and post a PR comment with per-file coverage, thresholds, and a histogram'
+author: 'thefastesc'
+inputs:
+  coverageFile:
+    required: true
+    description: 'local path to a coverage xml file like the output of pytest --cov'
+  token:
+    required: true
+    description: 'github token'
+  thresholdAll:
+    required: false
+    description: the coverage threshold for average over all files [0,1]
+    default: 0.0
+  thresholdNew:
+    required: false
+    description: the coverage threshold for average over new files [0,1]
+    default: 0.0
+  thresholdModified:
+    required: false
+    description: the coverage threshold for average over modified files [0,1]
+    default: 0.0
+  sourceDir:
+    required: false
+    description: the directory to use as the source of the coverage report
+  title:
+    required: false
+    description: title text shown in the PR comment heading and used to match existing comments. set a unique value per matrix entry to post separate comments
+    default: 'Code Coverage'
+  postComment:
+    required: false
+    description: post a comment on the PR in addition to the job summary. set to false to only write the job summary, e.g. in large matrix workflows to avoid comment spam
+    default: 'true'
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
+branding:
+   icon: 'umbrella'
+   color: 'purple'
