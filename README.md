@@ -1,27 +1,10 @@
 # best-python-coverage-action-comment
 
-Parse a Python coverage XML report and post a detailed comment on every pull request. Enforces configurable coverage thresholds on all files, new files, and modified files.
+Parse a Python coverage XML report and post a detailed comment on every pull request. Enforces configurable coverage thresholds on all files, new files, and modified files. Includes per file tables (new files/modified files).
 
 ![PR comment example](./images/pr-message.jpg)
 
----
-
-## How it works
-
-1. You generate a coverage XML report with `pytest` or `coverage.py` as part of your CI.
-2. On each pull request this action:
-   - Compares the base and head commits to identify **new** and **modified** files.
-   - Parses line coverage from the XML report for every changed file.
-   - Checks the overall average, new-file average, and modified-file average against your configured thresholds.
-   - Posts (or updates) a single comment on the PR with a summary, per-file tables, and a coverage histogram.
-   - Writes the same summary to the GitHub Actions job summary.
-   - Fails the job if any threshold is not met.
-
----
-
-## Quick start
-
-Add a workflow file to `.github/workflows/`:
+**Quick start:** Add a workflow file to `.github/workflows/`:
 
 ```yaml
 name: coverage
@@ -50,9 +33,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
----
-
-## Inputs
+### Inputs
 
 | Input               | Required | Default         | Description |
 |---------------------|:--------:|-----------------|-------------|
@@ -67,24 +48,8 @@ jobs:
 | `title`             |          | `Code Coverage` | Heading of the PR comment. Set a unique value per matrix job to post separate comments per job. |
 | `postComment`       |          | `true`          | Post a comment on the PR. Set to `false` to only write the job summary — useful in large matrix workflows to avoid comment spam. |
 
----
 
-## Generating a coverage XML report
-
-**pytest-cov**
-```bash
-pytest --cov=src --cov-report xml:coverage.xml
-```
-
-**coverage.py**
-```bash
-coverage run -m pytest
-coverage xml -o coverage.xml
-```
-
----
-
-## Full example with all inputs
+### Full example with all inputs
 
 ```yaml
 name: coverage
@@ -120,9 +85,23 @@ jobs:
           title: 'Python Coverage'
 ```
 
----
 
-## Workflows that run on both push and pull_request
+
+### Generating a coverage XML report
+
+**pytest-cov**
+```bash
+pytest --cov=src --cov-report xml:coverage.xml
+```
+
+**coverage.py**
+```bash
+coverage run -m pytest
+coverage xml -o coverage.xml
+```
+
+
+### Workflows that run on both push and pull_request
 
 The action only works on pull requests (it needs a PR to comment on). If your workflow also triggers on `push`, guard the action step with a condition:
 
@@ -157,9 +136,7 @@ jobs:
 
 Without the `if:` guard the step will fail on push events because there is no PR to comment on.
 
----
-
-## pytest `--cov-fail-under` vs action thresholds
+### pytest `--cov-fail-under` vs action thresholds
 
 These are two independent enforcement mechanisms that can be used together:
 
@@ -182,9 +159,7 @@ A common pattern is to use both: `--cov-fail-under` as a hard floor on overall c
           thresholdNew: 0.9
 ```
 
----
-
-## Matrix builds — one comment per job
+### Matrix builds — one comment per job
 
 For large matrices, consider setting `postComment: false` so each job only writes its own job summary and does not post a PR comment. Each job gets its own summary tab so there is no information loss:
 
@@ -213,9 +188,7 @@ steps:
       title: "Coverage — Python ${{ matrix.python-version }}"
 ```
 
----
-
-## Permissions
+### Permissions
 
 | Permission          | Why it is needed |
 |---------------------|------------------|
@@ -224,8 +197,5 @@ steps:
 
 If your repository enforces `permissions: read-all` at the org or repo level, set both permissions explicitly in the workflow as shown above.
 
----
 
-## License
-
-[MIT](./LICENSE)
+### License - [MIT](./LICENSE)
