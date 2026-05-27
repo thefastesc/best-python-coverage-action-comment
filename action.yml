@@ -1,5 +1,5 @@
-name: Python Coverage'
-description: 'Parse Python coverage XML and post a PR comment with per-file coverage, thresholds, and a histogram'
+name: Python Coverage Action
+description: 'Python test coverage PR comment with per-file coverage, thresholds, and a histogram'
 author: 'thefastesc'
 inputs:
   coverageFile:
