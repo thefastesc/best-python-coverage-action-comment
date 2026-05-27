@@ -1,4 +1,4 @@
-# best-python-coverage-action-comment
+# best python coverage action comment
 
 Parse a Python coverage XML report and post a detailed comment on every pull request. Enforces configurable coverage thresholds on all files, new files, and modified files. Includes per file tables (new files/modified files).
 
@@ -35,18 +35,18 @@ jobs:
 
 ### Inputs
 
-| Input               | Required | Default         | Description |
-|---------------------|:--------:|-----------------|-------------|
-| `coverageFile`      | ✅       | —               | Path to the coverage XML file produced by `pytest --cov` or `coverage xml`. |
-| `token`             | ✅       | —               | GitHub token used to read the diff and write the PR comment. Use `${{ secrets.GITHUB_TOKEN }}`. |
-| `thresholdAll`      |          | `0.0`           | Minimum acceptable average line coverage across **all** files in the report. Value in `[0, 1]`. |
-| `thresholdNew`      |          | `0.0`           | Minimum acceptable average line coverage across **new** files in the PR. Value in `[0, 1]`. |
-| `thresholdModified` |          | `0.0`           | Minimum acceptable average line coverage across **modified** files in the PR. Value in `[0, 1]`. |
-| `sourceDir`         |          | auto-detected   | Root directory of your source code. Overrides the `<source>` element in the XML report. |
-| `passIcon`          |          | `🟢`            | Icon shown next to files that meet the threshold. |
-| `failIcon`          |          | `🔴`            | Icon shown next to files that do not meet the threshold. |
-| `title`             |          | `Code Coverage` | Heading of the PR comment. Set a unique value per matrix job to post separate comments per job. |
-| `postComment`       |          | `true`          | Post a comment on the PR. Set to `false` to only write the job summary — useful in large matrix workflows to avoid comment spam. |
+| Input               | Default         | Description |
+|---------------------|-----------------|-------------|
+| `coverageFile`      | —               | **required** Path to the coverage XML file produced by `pytest --cov` or `coverage xml`. |
+| `token`             | —               | **required** GitHub token used to read the diff and write the PR comment. Use `${{ secrets.GITHUB_TOKEN }}`. |
+| `thresholdAll`      | `0.0`           | Minimum acceptable average line coverage across **all** files in the report. Value in `[0, 1]`. |
+| `thresholdNew`      | `0.0`           | Minimum acceptable average line coverage across **new** files in the PR. Value in `[0, 1]`. |
+| `thresholdModified` | `0.0`           | Minimum acceptable average line coverage across **modified** files in the PR. Value in `[0, 1]`. |
+| `sourceDir`         | auto-detected   | Root directory of your source code. Overrides the `<source>` element in the XML report. |
+| `passIcon`          | `🟢`            | Icon shown next to files that meet the threshold. |
+| `failIcon`          | `🔴`            | Icon shown next to files that do not meet the threshold. |
+| `title`             | `Code Coverage` | Heading of the PR comment. Set a unique value per matrix job to post separate comments per job. |
+| `postComment`       | `true`          | Post a comment on the PR. Set to `false` to only write the job summary (useful in large matrix workflows) |
 
 
 ### Full example with all inputs
@@ -199,3 +199,5 @@ If your repository enforces `permissions: read-all` at the org or repo level, se
 
 
 ### License - [MIT](./LICENSE)
+
+Why a fork of https://github.com/marketplace/actions/python-coverage ? Faster addressing of dependency updates/security issues, better use of vertical space & implemented missing features ignored by orgoro.
