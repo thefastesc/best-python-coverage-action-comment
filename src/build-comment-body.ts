@@ -30,8 +30,8 @@ export function buildCommentBody(filesCover: FilesCoverage, sha: string): {body:
   const allFiles: Coverage[] = [...(filesCover.newCover ?? []), ...(filesCover.modifiedCover ?? [])]
   const histogram = allFiles.length > 0 ? chart(allFiles) : ''
 
-  const action = '[action](https://github.com/marketplace/actions/best-python-coverage-action-comment)'
-  message = message.concat(`\n\n\n> **updated for commit: \`${sha}\` by ${action}🐍**`)
+  const actionLink = '[thefastesc/best-python-coverage-action-comment](https://github.com/thefastesc/best-python-coverage-action-comment)'
+  message = message.concat(`\n\n\n<sub>🤖 comment for \`${sha}\` via ${actionLink}</sub>`)
 
   return {body: `\n${summary}${histogram}${message}`, passOverall}
 }

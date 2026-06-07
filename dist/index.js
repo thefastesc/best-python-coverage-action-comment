@@ -1,6 +1,92 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 2605:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildCommentBody = buildCommentBody;
+const chart_1 = __nccwpck_require__(5087);
+const format_1 = __nccwpck_require__(6610);
+function buildCommentBody(filesCover, sha) {
+    var _a, _b, _c, _d;
+    let message = '';
+    let passOverall = filesCover.averageCover.pass;
+    const { ratio, covered, total, threshold, pass } = filesCover.averageCover;
+    const statusEmoji = pass ? '✅' : '❌';
+    const statusWord = pass ? 'passing' : 'failing';
+    const summary = `${statusEmoji} Coverage: **${statusWord}** with **${(0, format_1.toPercent)(ratio)}** — ${covered}/${total} statements covered. Threshold: ${(0, format_1.toPercent)(threshold)}`;
+    if ((_a = filesCover.newCover) === null || _a === void 0 ? void 0 : _a.length) {
+        const { coverTable, pass: passNew } = (0, format_1.formatFilesTable)(filesCover.newCover, filesCover.averageCover.ratio, 'New File');
+        passOverall = passOverall && passNew;
+        message = message.concat(`\n<details><summary>New Files</summary>\n\n${coverTable}\n</details>`);
+    }
+    if ((_b = filesCover.modifiedCover) === null || _b === void 0 ? void 0 : _b.length) {
+        const { coverTable, pass: passModified } = (0, format_1.formatFilesTable)(filesCover.modifiedCover, filesCover.averageCover.ratio, 'Modified File');
+        passOverall = passOverall && passModified;
+        message = message.concat(`\n<details><summary>Modified Files</summary>\n\n${coverTable}\n</details>`);
+    }
+    const allFiles = [...((_c = filesCover.newCover) !== null && _c !== void 0 ? _c : []), ...((_d = filesCover.modifiedCover) !== null && _d !== void 0 ? _d : [])];
+    const histogram = allFiles.length > 0 ? (0, chart_1.chart)(allFiles) : '';
+    const action = '[action](https://github.com/marketplace/actions/best-python-coverage-action-comment)';
+    message = message.concat(`\n\n\n> **updated for commit: \`${sha}\` by ${action}🐍**`);
+    return { body: `\n${summary}${histogram}${message}`, passOverall };
+}
+
+
+/***/ }),
+
+/***/ 5087:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.chart = chart;
+const emptyChar = '░';
+const fullChar = '█';
+const percs = () => ({
+    0: 0,
+    10: 0,
+    20: 0,
+    30: 0,
+    40: 0,
+    50: 0,
+    60: 0,
+    70: 0,
+    80: 0,
+    90: 0,
+    100: 0
+});
+function reduce(cover) {
+    return cover.reduce((buckets, file) => {
+        const bucket = Math.round((file.cover || 0) * 10) * 10;
+        return Object.assign(buckets, { [bucket]: buckets[bucket] + 1 });
+    }, percs());
+}
+const size = 23;
+const bar = (count, max) => fullChar.repeat(max > 0 ? Math.ceil((count / max) * size) : 0).padEnd(size, emptyChar);
+const p2s = (p) => p.toLocaleString('en', { style: 'percent', minimumFractionDigits: 1 }).padStart(5);
+function tostr(buckets) {
+    const max = Math.max(...Object.values(buckets));
+    const sum = Object.values(buckets).reduce((a, v) => a + v, 0);
+    const header = `Cover ┌─${'─'.repeat(size)}─┐ Freq.`;
+    const rows = Object.keys(buckets)
+        .filter(k => buckets[Number(k)] > 0)
+        .map(k => `${k.padStart(4)}% │ ${bar(buckets[Number(k)], max)} │ ${p2s(sum > 0 ? buckets[Number(k)] / sum : 0)}`)
+        .join('\n');
+    const footer = `      └─${'─'.repeat(size)}─┘`;
+    return `${header}\n${rows}\n${footer}`;
+}
+function chart(cover) {
+    return `\n\`\`\`\n${tostr(reduce(cover))}\n\`\`\`\n`;
+}
+
+
+/***/ }),
+
 /***/ 1565:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -67,12 +153,15 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.compareCommits = compareCommits;
 const github_1 = __nccwpck_require__(5438);
 const client_1 = __nccwpck_require__(1565);
-function compareCommits(base, head) {
+function compareCommits(pr) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         const { owner, repo } = github_1.context.repo;
-        const response = yield client_1.octokit.rest.repos.compareCommits({ base, head, owner, repo });
-        const files = (_a = response.data.files) !== null && _a !== void 0 ? _a : [];
+        const files = yield client_1.octokit.paginate(client_1.octokit.rest.pulls.listFiles, {
+            owner,
+            repo,
+            pull_number: pr,
+            per_page: 100
+        });
         const newFiles = [];
         const modifiedFiles = [];
         for (const file of files) {
@@ -129,44 +218,55 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseCoverageReport = parseCoverageReport;
 exports.parseFilesCoverage = parseFilesCoverage;
-exports.parseSource = parseSource;
+exports.parseSources = parseSources;
 exports.parseAverageCoverage = parseAverageCoverage;
 const core = __importStar(__nccwpck_require__(2186));
 function parseCoverageReport(report, files) {
     const threshAll = parseFloat(core.getInput('thresholdAll'));
     const avgCover = parseAverageCoverage(report, threshAll);
-    const source = core.getInput('sourceDir') || parseSource(report);
+    const sourceDirInput = core.getInput('sourceDir');
+    const sources = sourceDirInput ? [sourceDirInput] : parseSources(report);
     const threshModified = parseFloat(core.getInput('thresholdModified'));
-    const modifiedCover = parseFilesCoverage(report, source, files.modifiedFiles, threshModified);
+    const modifiedCover = parseFilesCoverage(report, sources, files.modifiedFiles, threshModified);
     const threshNew = parseFloat(core.getInput('thresholdNew'));
-    const newCover = parseFilesCoverage(report, source, files.newFiles, threshNew);
-    return { averageCover: avgCover, newCover, modifiedCover };
+    const newCover = parseFilesCoverage(report, sources, files.newFiles, threshNew);
+    return { averageCover: avgCover, newCover, modifiedCover, sources };
 }
 function escapeRegExp(value) {
     return value.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&');
 }
-function parseFilesCoverage(report, source, files, threshold) {
+function parseFilesCoverage(report, sources, files, threshold) {
     const coverages = files === null || files === void 0 ? void 0 : files.map(file => {
-        const fileName = escapeRegExp(file.replace(`${source}/`, ''));
-        const regex = new RegExp(`.*filename="${fileName}".*line-rate="(?<cover>[0-9]+[.]*[0-9]*)".*`);
-        const match = report.match(regex);
-        const cover = (match === null || match === void 0 ? void 0 : match.groups) ? parseFloat(match.groups['cover']) : -1;
+        // Try matching the full path first (filename already contains the source prefix),
+        // then fall back to stripping each source prefix for reports that omit it.
+        const candidates = [file, ...sources.map(source => file.replace(`${source}/`, ''))];
+        let cover = -1;
+        for (const candidate of candidates) {
+            const fileName = escapeRegExp(candidate);
+            const regex = new RegExp(`.*filename="${fileName}".*line-rate="(?<cover>[0-9]+[.]*[0-9]*)".*`);
+            const match = report.match(regex);
+            if (match === null || match === void 0 ? void 0 : match.groups) {
+                cover = parseFloat(match.groups['cover']);
+                break;
+            }
+        }
         return { file, cover, pass: cover >= threshold };
     });
     return coverages === null || coverages === void 0 ? void 0 : coverages.filter(cover => cover.cover >= 0);
 }
-function parseSource(report) {
-    const regex = new RegExp(`.*<source>(?<source>.*)</source>.*`);
-    const match = report.match(regex);
-    if ((match === null || match === void 0 ? void 0 : match.groups) && match.length === 2) {
-        const source = match.groups['source'].replace(`${process.cwd()}/`, '');
-        core.info(`source: ${source}`);
-        return source;
+function parseSources(report) {
+    const regex = new RegExp(`<source>(?<source>[^<]+)</source>`, 'g');
+    const sources = [];
+    for (const match of report.matchAll(regex)) {
+        if (match.groups) {
+            sources.push(match.groups['source'].replace(`${process.cwd()}/`, ''));
+        }
     }
-    else {
-        core.setFailed('❌ could not parse source from coverage report - or multiple sources found');
-        return 'unknown';
+    if (sources.length === 0) {
+        core.setFailed('❌ could not parse source from coverage report - make sure the xml report is valid');
+        return [];
     }
+    return sources;
 }
 function setFailed() {
     core.setFailed('❌ could not parse total coverage - make sure xml report is valid');
@@ -237,43 +337,28 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.toPercent = toPercent;
 exports.formatFilesTable = formatFilesTable;
-exports.formatAverageTable = formatAverageTable;
 const markdown_table_1 = __nccwpck_require__(4701);
 const core = __importStar(__nccwpck_require__(2186));
 const passIcon = core.getInput('passIcon') || '🟢';
 const failIcon = core.getInput('failIcon') || '🔴';
 const passOrFailIndicator = (predicate) => (predicate ? passIcon : failIcon);
-function averageCover(cover) {
-    const filterd = cover.filter(file => file.cover >= 0);
-    const sum = filterd.reduce((acc, curr) => curr.cover + acc, 0);
-    return `**${((100 * sum) / filterd.length).toFixed()}%**`;
-}
 function toPercent(value) {
     return `${(100 * value).toFixed()}%`;
 }
-function formatFilesTable(cover) {
-    const avgCover = averageCover(cover);
+function formatFilesTable(cover, totalRatio, fileLabel = 'File') {
     const pass = cover.every(x => x.pass);
     const averageIndicator = passOrFailIndicator(pass);
     const coverTable = (0, markdown_table_1.markdownTable)([
-        ['File', 'Coverage', 'Status'],
+        [fileLabel, 'Cover'],
         ...cover.map(coverFile => {
             const coverPrecent = `${(coverFile.cover * 100).toFixed()}%`;
             const indicator = passOrFailIndicator(coverFile.pass);
-            const formatedFile = coverFile.file.replace('_', '\\_');
-            return [formatedFile, coverPrecent, indicator];
+            const formatedFile = coverFile.file.replace(/_/g, '\\_');
+            return [`${indicator} ${formatedFile}`, coverPrecent];
         }),
-        ['**TOTAL**', avgCover, averageIndicator]
-    ], { align: ['l', 'c', 'c'] });
+        [`${averageIndicator} **TOTAL**`, `**${toPercent(totalRatio)}**`]
+    ], { align: ['l', 'c'] });
     return { coverTable, pass };
-}
-function formatAverageTable(cover) {
-    const averageIndicator = passOrFailIndicator(cover.pass);
-    const coverTable = (0, markdown_table_1.markdownTable)([
-        ['Statements', 'Covered', 'Coverage', 'Threshold', 'Status'],
-        [`${cover.total}`, `${cover.covered}`, toPercent(cover.ratio), toPercent(cover.threshold), averageIndicator]
-    ], { align: ['c', 'c', 'c', 'c', 'c'] });
-    return { coverTable, pass: cover.pass };
 }
 
 
@@ -346,15 +431,13 @@ function run() {
                 core.info(`action support only pull requests but event is ${eventName}`);
                 return;
             }
-            const { pull_request } = github_1.context.payload;
-            const base = pull_request === null || pull_request === void 0 ? void 0 : pull_request.base.sha;
-            const head = pull_request === null || pull_request === void 0 ? void 0 : pull_request.head.sha;
-            core.info(`comparing commits: base ${base} <> head ${head}`);
-            const files = yield (0, compareCommits_1.compareCommits)(base, head);
-            core.info(`git new files: ${JSON.stringify(files.newFiles)} modified files: ${JSON.stringify(files.modifiedFiles)}`);
+            const pr = github_1.context.issue.number;
+            core.info(`fetching changed files for PR #${pr}`);
+            const files = yield (0, compareCommits_1.compareCommits)(pr);
+            core.info(`new files: ${JSON.stringify(files.newFiles)} modified files: ${JSON.stringify(files.modifiedFiles)}`);
             const report = (0, readFile_1.default)(coverageFile);
             const filesCoverage = (0, coverage_1.parseCoverageReport)(report, files);
-            const passOverall = (0, scorePr_1.scorePr)(filesCoverage);
+            const passOverall = yield (0, scorePr_1.scorePr)(filesCoverage);
             if (!passOverall) {
                 core.setFailed('Coverage is lower than configured threshold 😭');
             }
@@ -474,19 +557,25 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.publishMessage = publishMessage;
 exports.scorePr = scorePr;
 const core = __importStar(__nccwpck_require__(2186));
+const build_comment_body_1 = __nccwpck_require__(2605);
 const format_1 = __nccwpck_require__(6610);
 const github_1 = __nccwpck_require__(5438);
 const client_1 = __nccwpck_require__(1565);
-const TITLE = `# ☂️ ${core.getInput('title') || 'Code Coverage'}`;
+function title() {
+    return `# ☂️ ${core.getInput('title') || 'Code Coverage'}`;
+}
 function publishMessage(pr, message) {
     return __awaiter(this, void 0, void 0, function* () {
+        const TITLE = title();
         const body = TITLE.concat(message);
         core.summary.addRaw(body).write();
-        const comments = yield client_1.octokit.rest.issues.listComments(Object.assign(Object.assign({}, github_1.context.repo), { issue_number: pr }));
-        const exist = comments.data.find(commnet => {
-            var _a;
-            return (_a = commnet.body) === null || _a === void 0 ? void 0 : _a.startsWith(TITLE);
-        });
+        const postComment = core.getInput('postComment') !== 'false';
+        if (!postComment) {
+            core.info('Skipping PR comment — postComment is false');
+            return;
+        }
+        const allComments = yield client_1.octokit.paginate(client_1.octokit.rest.issues.listComments, Object.assign(Object.assign({}, github_1.context.repo), { issue_number: pr, per_page: 100 }));
+        const exist = allComments.find(comment => { var _a; return (_a = comment.body) === null || _a === void 0 ? void 0 : _a.startsWith(TITLE); });
         if (exist) {
             yield client_1.octokit.rest.issues.updateComment(Object.assign(Object.assign({}, github_1.context.repo), { issue_number: pr, comment_id: exist.id, body }));
         }
@@ -496,42 +585,18 @@ function publishMessage(pr, message) {
     });
 }
 function scorePr(filesCover) {
-    var _a, _b, _c;
-    let message = '';
-    let passOverall = true;
-    core.startGroup('Results');
-    const { coverTable: avgCoverTable, pass: passTotal } = (0, format_1.formatAverageTable)(filesCover.averageCover);
-    message = message.concat(`\n## Overall Coverage\n${avgCoverTable}`);
-    passOverall = passOverall && passTotal;
-    const coverAll = (0, format_1.toPercent)(filesCover.averageCover.ratio);
-    passTotal ? core.info(`Average coverage ${coverAll} ✅`) : core.error(`Average coverage ${coverAll} ❌`);
-    if ((_a = filesCover.newCover) === null || _a === void 0 ? void 0 : _a.length) {
-        const { coverTable, pass: passNew } = (0, format_1.formatFilesTable)(filesCover.newCover);
-        passOverall = passOverall && passNew;
-        message = message.concat(`\n## New Files\n${coverTable}`);
-        passNew ? core.info('New files coverage ✅') : core.error('New Files coverage ❌');
-    }
-    else {
-        message = message.concat(`\n## New Files\nNo new covered files...`);
-        core.info('No covered new files in this PR ');
-    }
-    if ((_b = filesCover.modifiedCover) === null || _b === void 0 ? void 0 : _b.length) {
-        const { coverTable, pass: passModified } = (0, format_1.formatFilesTable)(filesCover.modifiedCover);
-        passOverall = passOverall && passModified;
-        message = message.concat(`\n## Modified Files\n${coverTable}`);
-        passModified ? core.info('Modified files coverage ✅') : core.error('Modified Files coverage ❌');
-    }
-    else {
-        message = message.concat(`\n## Modified Files\nNo covered modified files...`);
-        core.info('No covered modified files in this PR ');
-    }
-    const sha = (_c = github_1.context.payload.pull_request) === null || _c === void 0 ? void 0 : _c.head.sha.slice(0, 7);
-    const action = '[action](https://github.com/marketplace/actions/python-coverage)';
-    message = message.concat(`\n\n\n> **updated for commit: \`${sha}\` by ${action}🐍**`);
-    message = `\n> current status: ${passOverall ? '✅' : '❌'}`.concat(message);
-    publishMessage(github_1.context.issue.number, message);
-    core.endGroup();
-    return passOverall;
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        core.startGroup('Results');
+        const sha = (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.sha.slice(0, 7)) !== null && _b !== void 0 ? _b : 'unknown';
+        const { body, passOverall } = (0, build_comment_body_1.buildCommentBody)(filesCover, sha);
+        const coverAll = (0, format_1.toPercent)(filesCover.averageCover.ratio);
+        passOverall ? core.info(`Average coverage ${coverAll} ✅`) : core.error(`Average coverage ${coverAll} ❌`);
+        core.info(`sources: ${filesCover.sources.join(', ')}`);
+        yield publishMessage(github_1.context.issue.number, body);
+        core.endGroup();
+        return passOverall;
+    });
 }
 
 

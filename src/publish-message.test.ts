@@ -9,16 +9,17 @@ jest.mock('@actions/github', () => ({
   getOctokit: jest.fn()
 }))
 
-const mockListComments = jest.fn()
+const mockPaginate = jest.fn()
 const mockCreateComment = jest.fn()
 const mockUpdateComment = jest.fn()
 const mockAddRaw = jest.fn().mockReturnValue({write: jest.fn()})
 
 jest.mock('./client', () => ({
   octokit: {
+    paginate: (...args: unknown[]) => mockPaginate(...args),
     rest: {
       issues: {
-        listComments: (...args: unknown[]) => mockListComments(...args),
+        listComments: jest.fn(),
         createComment: (...args: unknown[]) => mockCreateComment(...args),
         updateComment: (...args: unknown[]) => mockUpdateComment(...args)
       }
@@ -48,7 +49,7 @@ function setupInputs(postComment: string, title = 'Code Coverage'): void {
 
 describe('publishMessage', () => {
   beforeEach(() => {
-    mockListComments.mockResolvedValue({data: []})
+    mockPaginate.mockResolvedValue([])
     mockCreateComment.mockResolvedValue({})
     mockUpdateComment.mockResolvedValue({})
   })
@@ -62,7 +63,7 @@ describe('publishMessage', () => {
   it('skips PR comment and logs when postComment is false', async () => {
     setupInputs('false')
     await publishMessage(42, 'body text')
-    expect(mockListComments).not.toHaveBeenCalled()
+    expect(mockPaginate).not.toHaveBeenCalled()
     expect(mockCreateComment).not.toHaveBeenCalled()
     expect(mockUpdateComment).not.toHaveBeenCalled()
     expect(core.info).toHaveBeenCalledWith(expect.stringContaining('Skipping PR comment'))
@@ -70,7 +71,7 @@ describe('publishMessage', () => {
 
   it('creates a new comment when none exists', async () => {
     setupInputs('true')
-    mockListComments.mockResolvedValue({data: []})
+    mockPaginate.mockResolvedValue([])
     await publishMessage(42, 'body text')
     expect(mockCreateComment).toHaveBeenCalledWith(
       expect.objectContaining({issue_number: 42, body: expect.any(String)})
@@ -80,9 +81,7 @@ describe('publishMessage', () => {
 
   it('updates an existing comment when one with the same title already exists', async () => {
     setupInputs('true', 'Code Coverage')
-    mockListComments.mockResolvedValue({
-      data: [{id: 99, body: '# ☂️ Code Coverage\nprevious content'}]
-    })
+    mockPaginate.mockResolvedValue([{id: 99, body: '# ☂️ Code Coverage\nprevious content'}])
     await publishMessage(42, 'new content')
     expect(mockUpdateComment).toHaveBeenCalledWith(
       expect.objectContaining({comment_id: 99, body: expect.stringContaining('new content')})
@@ -92,9 +91,7 @@ describe('publishMessage', () => {
 
   it('creates a new comment when an existing comment has a different title', async () => {
     setupInputs('true', 'Code Coverage')
-    mockListComments.mockResolvedValue({
-      data: [{id: 99, body: '# ☂️ Different Title\nsome content'}]
-    })
+    mockPaginate.mockResolvedValue([{id: 99, body: '# ☂️ Different Title\nsome content'}])
     await publishMessage(42, 'body text')
     expect(mockCreateComment).toHaveBeenCalled()
     expect(mockUpdateComment).not.toHaveBeenCalled()

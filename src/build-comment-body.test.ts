@@ -42,6 +42,13 @@ describe('buildCommentBody', () => {
     expect(body).toContain('abc1234')
   })
 
+  it('renders the footer as small text with a link to the action', () => {
+    const {body} = buildCommentBody(makeCoverage(), 'abc1234')
+    expect(body).toContain('<sub>')
+    expect(body).toContain('thefastesc/best-python-coverage-action-comment')
+    expect(body).toContain('abc1234')
+  })
+
   it('omits new files section when there are no new files', () => {
     const {body} = buildCommentBody(makeCoverage(), 'abc1234')
     expect(body).not.toContain('New Files')

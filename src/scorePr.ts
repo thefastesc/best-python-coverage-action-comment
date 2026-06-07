@@ -21,13 +21,12 @@ export async function publishMessage(pr: number, message: string): Promise<void>
     return
   }
 
-  const comments = await octokit.rest.issues.listComments({
+  const allComments = await octokit.paginate(octokit.rest.issues.listComments, {
     ...context.repo,
-    issue_number: pr
+    issue_number: pr,
+    per_page: 100
   })
-  const exist = comments.data.find(comment => {
-    return comment.body?.startsWith(TITLE)
-  })
+  const exist = allComments.find(comment => comment.body?.startsWith(TITLE))
 
   if (exist) {
     await octokit.rest.issues.updateComment({
@@ -54,6 +53,13 @@ export async function scorePr(filesCover: FilesCoverage): Promise<boolean> {
   const coverAll = toPercent(filesCover.averageCover.ratio)
   passOverall ? core.info(`Average coverage ${coverAll} ✅`) : core.error(`Average coverage ${coverAll} ❌`)
   core.info(`sources: ${filesCover.sources.join(', ')}`)
+
+  const hasChangedFiles = (filesCover.newCover?.length ?? 0) + (filesCover.modifiedCover?.length ?? 0) > 0
+  if (!hasChangedFiles) {
+    core.info('No new or modified files, skipping PR comment')
+    core.endGroup()
+    return passOverall
+  }
 
   await publishMessage(context.issue.number, body)
   core.endGroup()

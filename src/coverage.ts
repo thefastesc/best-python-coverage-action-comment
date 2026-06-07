@@ -55,12 +55,17 @@ export function parseFilesCoverage(
     let cover = -1
     for (const candidate of candidates) {
       const fileName = escapeRegExp(candidate)
-      const regex = new RegExp(`.*filename="${fileName}".*line-rate="(?<cover>[0-9]+[.]*[0-9]*)".*`)
-      const match = report.match(regex)
-      if (match?.groups) {
-        cover = parseFloat(match.groups['cover'])
-        break
+      const lineRegex = new RegExp(`^.*filename="${fileName}".*$`, 'gm')
+      const lineMatches = [...report.matchAll(lineRegex)]
+      const coverRegex = new RegExp('line-rate="(?<cover>[0-9]+\.?[0-9]*)"')
+      for (const lineMatch of lineMatches) {
+        const coverMatch = lineMatch[0].match(coverRegex)
+        if (coverMatch?.groups) {
+          cover = parseFloat(coverMatch.groups['cover'])
+          break
+        }
       }
+      if (cover >= 0) break
     }
     return {file, cover, pass: cover >= threshold}
   })
@@ -81,28 +86,30 @@ export function parseSources(report: string): string[] {
   }
   return sources
 }
+
 function setFailed(): AverageCoverage {
   core.setFailed('❌ could not parse total coverage - make sure xml report is valid')
   return {ratio: -1, covered: -1, threshold: -1, total: -1, pass: false}
 }
 
 export function parseAverageCoverage(report: string, threshold: number): AverageCoverage {
-  const lineRegex = new RegExp(`.*<coverage.*>`)
-  const totalRegex = new RegExp(`.*lines-valid="(?<total>[\\d\\.]+)".*`)
-  const coveredRegex = new RegExp(`.*lines-covered="(?<covered>[\\d\\.]+)".*`)
-  const ratioRegex = new RegExp(`.*line-rate="(?<ratio>[\\d\\.]+).*"`)
+  const lineRegex = new RegExp('.*<coverage.*>', 'g')
+  const totalRegex = new RegExp('.*lines-valid="(?<total>[\\d.]+)".*')
+  const coveredRegex = new RegExp('.*lines-covered="(?<covered>[\\d.]+)".*')
+  const coverageLineRegex = new RegExp('line-rate="(?<ratio>[\\d.]+)"')
 
-  const match = report.match(lineRegex)
+  const matches = [...report.matchAll(lineRegex)]
   let result = null
-  if (match?.length === 1) {
-    const totalMatch = match[0].match(totalRegex)
-    const coveredMatch = match[0].match(coveredRegex)
-    const ratioMatch = match[0].match(ratioRegex)
+  if (matches.length === 1) {
+    const line = matches[0][0]
+    const totalMatch = line.match(totalRegex)
+    const coveredMatch = line.match(coveredRegex)
+    const ratioMatch = line.match(coverageLineRegex)
 
     if (totalMatch?.groups && coveredMatch?.groups && ratioMatch?.groups) {
       const total = parseFloat(totalMatch.groups['total'])
       const covered = parseFloat(coveredMatch.groups['covered'])
-      const ratio = parseFloat(ratioMatch.groups['ratio'])
+      const ratio = covered / total
       result = {ratio, covered, threshold, total, pass: ratio >= threshold}
     }
   }
