@@ -10,6 +10,13 @@ jobs:
           npm install
       - run: |
           npm run all
+      - name: Fail if dist is out of date
+        run: |
+          if ! git diff --quiet dist/; then
+            echo "dist/index.js is out of date — run 'npm run package' and commit the result"
+            git diff --stat dist/
+            exit 1
+          fi
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:

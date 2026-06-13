@@ -30,8 +30,8 @@ function buildCommentBody(filesCover, sha) {
     }
     const allFiles = [...((_c = filesCover.newCover) !== null && _c !== void 0 ? _c : []), ...((_d = filesCover.modifiedCover) !== null && _d !== void 0 ? _d : [])];
     const histogram = allFiles.length > 0 ? (0, chart_1.chart)(allFiles) : '';
-    const action = '[action](https://github.com/marketplace/actions/best-python-coverage-action-comment)';
-    message = message.concat(`\n\n\n> **updated for commit: \`${sha}\` by ${action}🐍**`);
+    const actionLink = '[thefastesc/python-coverage-action-comment](https://github.com/thefastesc/python-coverage-action-comment)';
+    message = message.concat(`\n\n\n<sub>comment for \`${sha}\` via ${actionLink}</sub>`);
     return { body: `\n${summary}${histogram}${message}`, passOverall };
 }
 
@@ -243,12 +243,18 @@ function parseFilesCoverage(report, sources, files, threshold) {
         let cover = -1;
         for (const candidate of candidates) {
             const fileName = escapeRegExp(candidate);
-            const regex = new RegExp(`.*filename="${fileName}".*line-rate="(?<cover>[0-9]+[.]*[0-9]*)".*`);
-            const match = report.match(regex);
-            if (match === null || match === void 0 ? void 0 : match.groups) {
-                cover = parseFloat(match.groups['cover']);
-                break;
+            const lineRegex = new RegExp(`^.*filename="${fileName}".*$`, 'gm');
+            const lineMatches = [...report.matchAll(lineRegex)];
+            const coverRegex = new RegExp('line-rate="(?<cover>[0-9]+.?[0-9]*)"');
+            for (const lineMatch of lineMatches) {
+                const coverMatch = lineMatch[0].match(coverRegex);
+                if (coverMatch === null || coverMatch === void 0 ? void 0 : coverMatch.groups) {
+                    cover = parseFloat(coverMatch.groups['cover']);
+                    break;
+                }
             }
+            if (cover >= 0)
+                break;
         }
         return { file, cover, pass: cover >= threshold };
     });
@@ -273,20 +279,21 @@ function setFailed() {
     return { ratio: -1, covered: -1, threshold: -1, total: -1, pass: false };
 }
 function parseAverageCoverage(report, threshold) {
-    const lineRegex = new RegExp(`.*<coverage.*>`);
-    const totalRegex = new RegExp(`.*lines-valid="(?<total>[\\d\\.]+)".*`);
-    const coveredRegex = new RegExp(`.*lines-covered="(?<covered>[\\d\\.]+)".*`);
-    const ratioRegex = new RegExp(`.*line-rate="(?<ratio>[\\d\\.]+).*"`);
-    const match = report.match(lineRegex);
+    const lineRegex = new RegExp('.*<coverage.*>', 'g');
+    const totalRegex = new RegExp('.*lines-valid="(?<total>[\\d.]+)".*');
+    const coveredRegex = new RegExp('.*lines-covered="(?<covered>[\\d.]+)".*');
+    const coverageLineRegex = new RegExp('line-rate="(?<ratio>[\\d.]+)"');
+    const matches = [...report.matchAll(lineRegex)];
     let result = null;
-    if ((match === null || match === void 0 ? void 0 : match.length) === 1) {
-        const totalMatch = match[0].match(totalRegex);
-        const coveredMatch = match[0].match(coveredRegex);
-        const ratioMatch = match[0].match(ratioRegex);
+    if (matches.length === 1) {
+        const line = matches[0][0];
+        const totalMatch = line.match(totalRegex);
+        const coveredMatch = line.match(coveredRegex);
+        const ratioMatch = line.match(coverageLineRegex);
         if ((totalMatch === null || totalMatch === void 0 ? void 0 : totalMatch.groups) && (coveredMatch === null || coveredMatch === void 0 ? void 0 : coveredMatch.groups) && (ratioMatch === null || ratioMatch === void 0 ? void 0 : ratioMatch.groups)) {
             const total = parseFloat(totalMatch.groups['total']);
             const covered = parseFloat(coveredMatch.groups['covered']);
-            const ratio = parseFloat(ratioMatch.groups['ratio']);
+            const ratio = covered / total;
             result = { ratio, covered, threshold, total, pass: ratio >= threshold };
         }
     }
@@ -360,6 +367,7 @@ function formatFilesTable(cover, totalRatio, fileLabel = 'File') {
     ], { align: ['l', 'c'] });
     return { coverTable, pass };
 }
+// touch
 
 
 /***/ }),
@@ -497,7 +505,7 @@ const readFile = (path) => {
     try {
         return fs.readFileSync(path, 'utf8');
     }
-    catch (error) {
+    catch (_a) {
         throw new Error(`could not read file ${path}`);
     }
 };
@@ -586,13 +594,24 @@ function publishMessage(pr, message) {
 }
 function scorePr(filesCover) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
+        var _a, _b, _c, _d, _e, _f;
         core.startGroup('Results');
         const sha = (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.sha.slice(0, 7)) !== null && _b !== void 0 ? _b : 'unknown';
         const { body, passOverall } = (0, build_comment_body_1.buildCommentBody)(filesCover, sha);
         const coverAll = (0, format_1.toPercent)(filesCover.averageCover.ratio);
-        passOverall ? core.info(`Average coverage ${coverAll} ✅`) : core.error(`Average coverage ${coverAll} ❌`);
+        if (passOverall) {
+            core.info(`Average coverage ${coverAll} ✅`);
+        }
+        else {
+            core.error(`Average coverage ${coverAll} ❌`);
+        }
         core.info(`sources: ${filesCover.sources.join(', ')}`);
+        const hasChangedFiles = ((_d = (_c = filesCover.newCover) === null || _c === void 0 ? void 0 : _c.length) !== null && _d !== void 0 ? _d : 0) + ((_f = (_e = filesCover.modifiedCover) === null || _e === void 0 ? void 0 : _e.length) !== null && _f !== void 0 ? _f : 0) > 0;
+        if (!hasChangedFiles) {
+            core.info('No new or modified files, skipping PR comment');
+            core.endGroup();
+            return passOverall;
+        }
         yield publishMessage(github_1.context.issue.number, body);
         core.endGroup();
         return passOverall;

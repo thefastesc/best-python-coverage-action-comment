@@ -1,5 +1,5 @@
 {
-  "name": "best-python-coverage-action-comment",
+  "name": "python-coverage-action-comment",
   "version": "0.0.0",
   "private": true,
   "description": "TypeScript template action",
@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thefastesc/best-python-coverage-action-comment.git"
+    "url": "git+https://github.com/thefastesc/python-coverage-action-comment.git"
   },
   "keywords": [
     "actions",

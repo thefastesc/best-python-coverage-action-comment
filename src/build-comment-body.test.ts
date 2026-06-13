@@ -45,7 +45,7 @@ describe('buildCommentBody', () => {
   it('renders the footer as small text with a link to the action', () => {
     const {body} = buildCommentBody(makeCoverage(), 'abc1234')
     expect(body).toContain('<sub>')
-    expect(body).toContain('thefastesc/best-python-coverage-action-comment')
+    expect(body).toContain('thefastesc/python-coverage-action-comment')
     expect(body).toContain('abc1234')
   })
 

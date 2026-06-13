@@ -1,4 +1,4 @@
-# best python coverage action comment
+# python coverage action comment
 
 Parse a Python coverage XML report and post a detailed comment on every pull request. Enforces configurable coverage thresholds on all files, new files, and modified files. Includes per file tables (new files/modified files).
 
@@ -27,7 +27,7 @@ jobs:
         run: pytest --cov-report xml:coverage.xml --cov=src
 
       - name: Post coverage comment
-        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        uses: thefastesc/python-coverage-action-comment@v3.4
         with:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -72,7 +72,7 @@ jobs:
         run: pytest --cov=src --cov-report xml:coverage.xml
 
       - name: Post coverage comment
-        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        uses: thefastesc/python-coverage-action-comment@v3.4
         with:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -128,7 +128,7 @@ jobs:
 
       - name: Post coverage comment
         if: github.event_name == 'pull_request'
-        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        uses: thefastesc/python-coverage-action-comment@v3.4
         with:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -151,7 +151,7 @@ A common pattern is to use both: `--cov-fail-under` as a hard floor on overall c
 
       - name: Post coverage comment
         if: github.event_name == 'pull_request'
-        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        uses: thefastesc/python-coverage-action-comment@v3.4
         with:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -165,7 +165,7 @@ For large matrices, consider setting `postComment: false` so each job only write
 
 ```yaml
       - name: Post coverage comment
-        uses: thefastesc/best-python-coverage-action-comment@v3.3
+        uses: thefastesc/python-coverage-action-comment@v3.4
         with:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -181,7 +181,7 @@ strategy:
 
 steps:
   - name: Post coverage comment
-    uses: thefastesc/best-python-coverage-action-comment@v3.3
+    uses: thefastesc/python-coverage-action-comment@v3.4
     with:
       coverageFile: coverage.xml
       token: ${{ secrets.GITHUB_TOKEN }}
@@ -198,6 +198,23 @@ steps:
 If your repository enforces `permissions: read-all` at the org or repo level, set both permissions explicitly in the workflow as shown above.
 
 
+### Contributing
+
+The action runs from the pre-compiled bundle in `dist/index.js` (see `action.yml: main: dist/index.js`). That file must be rebuilt whenever `src/` changes, otherwise the live action keeps executing old code.
+
+**Locally** — a pre-commit hook handles this automatically. When you commit any change under `src/`, the hook runs `npm run package` and stages the updated `dist/` files before the commit lands.
+
+**In CI** — the `build` job runs `npm run all` (which includes `npm run package`) and then asserts that `dist/` has no uncommitted diff. The job fails if the bundle is out of date.
+
+If you need to rebuild `dist/` manually:
+```bash
+npm run package
+git add dist/
+git commit -m "Rebuild dist"
+```
+
+To bypass the pre-commit hook in an emergency: `git commit --no-verify`.
+
 ### License - [MIT](./LICENSE)
 
-Why a fork of https://github.com/marketplace/actions/python-coverage ? Faster addressing of dependency updates/security issues, better use of vertical space & implemented missing features ignored by orgoro.
+Forked from https://github.com/marketplace/actions/python-coverage. Faster dependency/security updates, better vertical space usage, and additional features.

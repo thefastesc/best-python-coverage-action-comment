@@ -3,7 +3,7 @@ import {publishMessage} from './scorePr'
 
 jest.mock('@actions/github', () => ({
   context: {
-    repo: {owner: 'thefastesc', repo: 'best-python-coverage-action-comment'},
+    repo: {owner: 'thefastesc', repo: 'python-coverage-action-comment'},
     issue: {number: 42}
   },
   getOctokit: jest.fn()
