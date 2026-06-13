@@ -51,7 +51,11 @@ export async function scorePr(filesCover: FilesCoverage): Promise<boolean> {
   const {body, passOverall} = buildCommentBody(filesCover, sha)
 
   const coverAll = toPercent(filesCover.averageCover.ratio)
-  passOverall ? core.info(`Average coverage ${coverAll} ✅`) : core.error(`Average coverage ${coverAll} ❌`)
+  if (passOverall) {
+    core.info(`Average coverage ${coverAll} ✅`)
+  } else {
+    core.error(`Average coverage ${coverAll} ❌`)
+  }
   core.info(`sources: ${filesCover.sources.join(', ')}`)
 
   const hasChangedFiles = (filesCover.newCover?.length ?? 0) + (filesCover.modifiedCover?.length ?? 0) > 0

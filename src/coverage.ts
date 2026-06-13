@@ -57,7 +57,7 @@ export function parseFilesCoverage(
       const fileName = escapeRegExp(candidate)
       const lineRegex = new RegExp(`^.*filename="${fileName}".*$`, 'gm')
       const lineMatches = [...report.matchAll(lineRegex)]
-      const coverRegex = new RegExp('line-rate="(?<cover>[0-9]+\.?[0-9]*)"')
+      const coverRegex = new RegExp('line-rate="(?<cover>[0-9]+.?[0-9]*)"')
       for (const lineMatch of lineMatches) {
         const coverMatch = lineMatch[0].match(coverRegex)
         if (coverMatch?.groups) {

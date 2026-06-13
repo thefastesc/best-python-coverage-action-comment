@@ -3,7 +3,7 @@ import fs from 'fs'
 
 jest.mock('@actions/core', () => ({
   getInput: jest.fn().mockReturnValue(''),
-  setFailed: jest.fn(),
+  setFailed: jest.fn()
 }))
 
 const coverageFilePathV1 = './coverage.xml'
@@ -62,12 +62,7 @@ describe('coverage parsing', () => {
     // Without global matching the regex stops at the first line, returning the wrong value.
     const report = fs.readFileSync(coverageFilePathIdentityOauth, 'utf8')
     const source = '/home/runner/work/my-project/src'
-    const parsed = parseFilesCoverage(
-      report,
-      [source],
-      [`${source}/event_handlers/remove_user_token/di.py`],
-      0.5
-    )
+    const parsed = parseFilesCoverage(report, [source], [`${source}/event_handlers/remove_user_token/di.py`], 0.5)
     expect(parsed).toBeDefined()
     expect(parsed).toHaveLength(1)
     expect(parsed![0].cover).toBe(0)
@@ -87,7 +82,8 @@ describe('coverage parsing', () => {
   // Bug 3: the ratioRegex trailing `.*"` is greedy and can backtrack past the closing quote
   // of line-rate into a later attribute, capturing the wrong value.
   it('parses line-rate correctly when later attributes have quoted numeric values', () => {
-    const report = '<coverage line-rate="0.75" lines-valid="1000" lines-covered="750" branches-covered="12" branches-valid="16">'
+    const report =
+      '<coverage line-rate="0.75" lines-valid="1000" lines-covered="750" branches-covered="12" branches-valid="16">'
     const parsed = parseAverageCoverage(report, 0.5)
     expect(parsed.ratio).toBe(0.75)
   })
